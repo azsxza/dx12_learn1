@@ -1,11 +1,12 @@
 ﻿#include "stdafx.h"
+#include <iostream>
+using namespace std;
 
 
-
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nShowCmd)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
 
-	if (!InitalizeWindow(hInstance, nShowCmd, Width, Height, FullScreen))
+	if (!InitializeWindow(hInstance, nShowCmd, Width, Height, FullScreen))
 	{
 		MessageBox(0, L"Windows Initalization Failed", L"Error", MB_OK);
 		return 0;
@@ -15,7 +16,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nShowCmd)
 	return 0;
 }
 
-bool InitalizeWindow(HINSTANCE hInstance, int ShowWnd, int width, int height, bool fullScreen)
+bool InitializeWindow(HINSTANCE hInstance, int ShowWnd, int width, int height, bool fullScreen)
 {
 	if (fullScreen)
 	{
@@ -50,6 +51,8 @@ bool InitalizeWindow(HINSTANCE hInstance, int ShowWnd, int width, int height, bo
 		width, height, NULL, NULL, hInstance, NULL);
 	if (!hwnd)
 	{
+		auto t = GetLastError();
+		MessageBox(NULL, LPCWSTR(GetLastError()), L"Error", MB_OK | MB_ICONERROR);
 		MessageBox(NULL, L"Error creating window", L"Error", MB_OK | MB_ICONERROR);
 		return false;
 	}
@@ -83,7 +86,7 @@ void mainLoop()
 	}
 }
 
-LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	switch (msg)
 	{
@@ -91,12 +94,12 @@ LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		if (wParam == VK_ESCAPE)
 		{
 			if (MessageBox(0, L"Are you sure you want to exit?", L"Really?", MB_YESNO | MB_ICONQUESTION) == IDYES)
-				DestroyWindow(hwnd);
+				DestroyWindow(hWnd);
 		}
 		return 0;
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
 	}
-	return DefWindowProc(hwnd, msg, wParam, lParam);
+	return DefWindowProc(hWnd, msg, wParam, lParam);
 }

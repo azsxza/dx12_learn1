@@ -19,7 +19,7 @@ int Width = 800;
 int Height = 600;
 bool FullScreen = false;
 
-bool InitalizeWindow(HINSTANCE hInstace, int ShowWnd, int width, int height, bool fullScreen);
+bool InitializeWindow(HINSTANCE hInstace, int ShowWnd, int width, int height, bool fullScreen);
 void mainLoop();
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
