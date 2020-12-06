@@ -11,6 +11,8 @@
 #include <DirectXMath.h>
 #include "d3dx12.h"
 
+#define SAFE_RELEASE(p) {if((p)){(p)->Release();(p)=0;}}
+
 HWND hwnd = NULL;
 LPCTSTR WindowName = L"DX12";
 LPCTSTR WindowTitle = L"DX12 Window";
@@ -18,6 +20,7 @@ LPCTSTR WindowTitle = L"DX12 Window";
 int Width = 800;
 int Height = 600;
 bool FullScreen = false;
+bool Running = false;
 
 bool InitializeWindow(HINSTANCE hInstace, int ShowWnd, int width, int height, bool fullScreen);
 void mainLoop();

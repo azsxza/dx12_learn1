@@ -229,5 +229,78 @@ bool InitD3D()
 
 void Update()
 {
+	HRESULT hr;
+	WaitForPreviousFrame();
+	hr = commandAllocator[frameIndex]->Reset();
+	if (FAILED(hr))
+		Running = false;
+	hr = commandList->Reset(commandAllocator[frameIndex], NULL);
+	if (FAILED(hr))
+		Running = false;
 
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIndex], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
+	commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+
+	const float clearColor[] = { 0.0f,0.2f,0.4f,1.0f };
+	commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIndex], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+	hr = commandList->Close();
+	if (FAILED(hr))
+		Running = false;
+}
+
+void Render()
+{
+	HRESULT hr;
+	ID3D12CommandList* ppCommandList[] = { commandList };
+	commandQueue->ExecuteCommandLists(_countof(ppCommandList), ppCommandList);
+
+	hr = commandQueue->Signal(fence[frameIndex], fenceValue[frameIndex]);
+	if (FAILED(hr))
+		Running = false;
+	hr = swapChain->Present(0, 0);
+	if (FAILED(hr))
+		Running = false;
+}
+
+void Cleanup()
+{
+	for (int i = 0; i < frameBufferCount; i++)
+	{
+		frameIndex = i;
+		WaitForPreviousFrame();
+	}
+
+	BOOL fs = false;
+	if (swapChain->GetFullscreenState(&fs, NULL))
+		swapChain->SetFullscreenState(false, NULL);
+	SAFE_RELEASE(device);
+	SAFE_RELEASE(swapChain);
+	SAFE_RELEASE(commandQueue);
+	SAFE_RELEASE(rtvDescriptorHeap);
+	SAFE_RELEASE(commandList);
+
+	for (int i = 0; i < frameBufferCount; i++)
+	{
+		SAFE_RELEASE(renderTargets[i]);
+		SAFE_RELEASE(commandAllocator[i]);
+		SAFE_RELEASE(fence[i]);
+	}
+}
+
+void WaitForPreviousFrame()
+{
+	HRESULT hr;
+
+	frameIndex = swapChain->GetCurrentBackBufferIndex();
+	if (fence[frameIndex]->GetCompletedValue() < fenceValue[frameIndex])
+	{
+		hr = fence[frameIndex]->SetEventOnCompletion(fenceValue[frameIndex], fenceEvent);
+		if (FAILED(hr))
+			Running = false;
+		WaitForSingleObject(fenceEvent, INFINITE);
+	}
+	fenceValue[frameIndex]++;
 }
