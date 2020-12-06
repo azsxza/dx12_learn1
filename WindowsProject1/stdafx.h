@@ -4,16 +4,14 @@
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers.
 #endif
 
-#include <Windows.h>
+#include <windows.h>
 #include <d3d12.h>
 #include <dxgi1_4.h>
 #include <D3Dcompiler.h>
 #include <DirectXMath.h>
 #include "d3dx12.h"
-
-using namespace DirectX;
-
-#define SAFE_RELEASE(p) {if((p)){(p)->Release();(p)=0;}}
+#include <string>
+#define SAFE_RELEASE(p) { if ( (p) ) { (p)->Release(); (p) = 0; } }
 
 HWND hwnd = NULL;
 LPCTSTR WindowName = L"DX12";
@@ -22,10 +20,10 @@ LPCTSTR WindowTitle = L"DX12 Window";
 int Width = 800;
 int Height = 600;
 bool FullScreen = false;
-bool Running = false;
+bool Running = true;
 
-bool InitializeWindow(HINSTANCE hInstace, int ShowWnd, int width, int height, bool fullScreen);
-void mainLoop();
+bool InitializeWindow(HINSTANCE hInstace, int ShowWnd, bool fullScreen);
+void mainloop();
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -59,7 +57,3 @@ D3D12_VIEWPORT viewport;
 D3D12_RECT scissorRect;
 ID3D12Resource* vertexBuffer;
 D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
-struct Vertex
-{
-	XMFLOAT3 pos;
-};

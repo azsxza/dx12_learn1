@@ -2,10 +2,17 @@
 #include <iostream>
 using namespace std;
 
+using namespace DirectX;
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
+struct Vertex
 {
-	if (!InitializeWindow(hInstance, nShowCmd, Width, Height, FullScreen))
+	XMFLOAT3 pos;
+};
+
+
+int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,	LPSTR lpCmdLine,	int nShowCmd)
+{
+	if (!InitializeWindow(hInstance, nShowCmd, FullScreen))
 	{
 		MessageBox(0, L"Windows Initalization Failed", L"Error", MB_OK);
 		return 0;
@@ -17,16 +24,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		return 1;
 	}
 
-	mainLoop();
+	mainloop();
 
 	WaitForPreviousFrame();
 
 	CloseHandle(fenceEvent);
+	Cleanup();
 
 	return 0;
 }
 
-bool InitializeWindow(HINSTANCE hInstance, int ShowWnd, int width, int height, bool fullScreen)
+bool InitializeWindow(HINSTANCE hInstance, int ShowWnd, bool fullScreen)
 {
 	if (fullScreen)
 	{
@@ -34,8 +42,8 @@ bool InitializeWindow(HINSTANCE hInstance, int ShowWnd, int width, int height, b
 		MONITORINFO mi = { sizeof(mi) };
 		GetMonitorInfo(hmon, &mi);
 
-		width = mi.rcMonitor.right;
-		height = mi.rcMonitor.top;
+		Width = mi.rcMonitor.right;
+		Height = mi.rcMonitor.top;
 	}
 	WNDCLASSEX wc;
 	wc.cbSize = sizeof(WNDCLASSEX);
@@ -58,7 +66,7 @@ bool InitializeWindow(HINSTANCE hInstance, int ShowWnd, int width, int height, b
 	}
 
 	hwnd = CreateWindowEx(NULL, WindowName, WindowTitle, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
-		width, height, NULL, NULL, hInstance, NULL);
+		Width, Height, NULL, NULL, hInstance, NULL);
 	if (!hwnd)
 	{
 		auto t = GetLastError();
@@ -76,7 +84,7 @@ bool InitializeWindow(HINSTANCE hInstance, int ShowWnd, int width, int height, b
 	return true;
 }
 
-void mainLoop()
+void mainloop()
 {
 	MSG msg;
 	ZeroMemory(&msg, sizeof(MSG));
@@ -91,7 +99,8 @@ void mainLoop()
 		}
 		else
 		{
-
+			Update();
+			Render();
 		}
 	}
 }
@@ -246,7 +255,7 @@ bool InitD3D()
 		OutputDebugStringA((char*)errorBuff->GetBufferPointer());
 		return false;
 	}
-	hr = D3DCompileFromFile(L"PixelShader.hlgl", nullptr, nullptr, "main", "ps_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &pixelShader, &errorBuff);
+	hr = D3DCompileFromFile(L"PixelShader.hlsl", nullptr, nullptr, "main", "ps_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &pixelShader, &errorBuff);
 	if (FAILED(hr))
 	{
 		OutputDebugStringA((char*)errorBuff->GetBufferPointer());
@@ -260,11 +269,96 @@ bool InitD3D()
 	pixelShaderByteCode.BytecodeLength = pixelShader->GetBufferSize();
 	pixelShaderByteCode.pShaderBytecode = pixelShader->GetBufferPointer();
 
+	//input layout
+	D3D12_INPUT_ELEMENT_DESC inputLayout[] =
+	{
+		{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}
+	};
+	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc = {};
+
+	inputLayoutDesc.NumElements = sizeof(inputLayout) / sizeof(D3D12_INPUT_ELEMENT_DESC);
+	inputLayoutDesc.pInputElementDescs = inputLayout;
+
+	//create PSO
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+	psoDesc.InputLayout = inputLayoutDesc;
+	psoDesc.pRootSignature = rootSignature;
+	psoDesc.VS = vertexShaderByteCode;
+	psoDesc.PS = pixelShaderByteCode;
+	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	psoDesc.SampleDesc = sampleDesc;
+	psoDesc.SampleMask = 0xffffffff;
+	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	psoDesc.NumRenderTargets = 1;
+
+	hr = device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineStateObject));
+	if (FAILED(hr))
+		return false;
+
+	//vertex buffer
+	Vertex vList[] =
+	{
+		{{0.0f,0.5f,0.5f,}},
+		{{0.5f,-0.5f,0.5f}},
+		{{-0.5f,-0.5f,0.5f}}
+	};
+	int vBufferSize = sizeof(vList);
+	device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,&CD3DX12_RESOURCE_DESC::Buffer(vBufferSize),D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,IID_PPV_ARGS(&vertexBuffer));
+
+	vertexBuffer->SetName(L"Vertex Buffer Resource Heap");
+
+	ID3D12Resource* vBufferUploadHeap;
+	device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(vBufferSize), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+		IID_PPV_ARGS(&vBufferUploadHeap));
+	vBufferUploadHeap->SetName(L"Vertex Buffer Upload Reasource Heap");
+
+	D3D12_SUBRESOURCE_DATA vertexData = {};
+	vertexData.pData = reinterpret_cast<BYTE*>(vList);
+	vertexData.RowPitch = vBufferSize;
+	vertexData.SlicePitch = vBufferSize;
+
+	UpdateSubresources(commandList, vertexBuffer, vBufferUploadHeap, 0, 0, 1, &vertexData);
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(vertexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+
+	commandList->Close();
+	ID3D12CommandList* ppCommandLists[] = { commandList };
+	commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+	fenceValue[frameIndex]++;
+	hr = commandQueue->Signal(fence[frameIndex], fenceValue[frameIndex]);
+	if (FAILED(hr))
+		Running =  false;
+
+	vertexBufferView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
+	vertexBufferView.StrideInBytes = sizeof(Vertex);
+	vertexBufferView.SizeInBytes = vBufferSize;
+
+	viewport.TopLeftX = 0;
+	viewport.TopLeftY = 0;
+	viewport.Width = Width;
+	viewport.Height = Height;
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+
+	scissorRect.left = 0;
+	scissorRect.top = 0;
+	scissorRect.right = Width;
+	scissorRect.bottom = Height;
 
 	return true;
 }
 
 void Update()
+{
+
+}
+
+void UpdatePipeline()
 {
 	HRESULT hr;
 	WaitForPreviousFrame();
@@ -282,6 +376,13 @@ void Update()
 	const float clearColor[] = { 0.0f,0.2f,0.4f,1.0f };
 	commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
 
+	commandList->SetGraphicsRootSignature(rootSignature);
+	commandList->RSSetViewports(1, &viewport);
+	commandList->RSSetScissorRects(1, &scissorRect);
+	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+	commandList->DrawInstanced(3, 1, 0, 0);
+
 	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIndex], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 	hr = commandList->Close();
 	if (FAILED(hr))
@@ -291,6 +392,7 @@ void Update()
 void Render()
 {
 	HRESULT hr;
+	UpdatePipeline();
 	ID3D12CommandList* ppCommandList[] = { commandList };
 	commandQueue->ExecuteCommandLists(_countof(ppCommandList), ppCommandList);
 
@@ -325,6 +427,10 @@ void Cleanup()
 		SAFE_RELEASE(commandAllocator[i]);
 		SAFE_RELEASE(fence[i]);
 	}
+
+	SAFE_RELEASE(pipelineStateObject);
+	SAFE_RELEASE(rootSignature);
+	SAFE_RELEASE(vertexBuffer);
 }
 
 void WaitForPreviousFrame()
