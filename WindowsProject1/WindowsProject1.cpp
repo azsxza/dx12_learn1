@@ -1,12 +1,12 @@
 ﻿#include "stdafx.h"
 #include <iostream>
-using namespace std;
-
 using namespace DirectX;
 
 struct Vertex
 {
+	Vertex(float x, float y, float z, float r, float g, float b, float a) :pos(x, y, z), color(r, g, b, a) {}
 	XMFLOAT3 pos;
+	XMFLOAT4 color;
 };
 
 
@@ -15,7 +15,7 @@ int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,	LPSTR lpCmdLine
 	if (!InitializeWindow(hInstance, nShowCmd, FullScreen))
 	{
 		MessageBox(0, L"Windows Initalization Failed", L"Error", MB_OK);
-		return 0;
+		return 1;
 	}
 	if (!InitD3D())
 	{
@@ -42,8 +42,8 @@ bool InitializeWindow(HINSTANCE hInstance, int ShowWnd, bool fullScreen)
 		MONITORINFO mi = { sizeof(mi) };
 		GetMonitorInfo(hmon, &mi);
 
-		Width = mi.rcMonitor.right;
-		Height = mi.rcMonitor.top;
+		Width = mi.rcMonitor.right - mi.rcMonitor.left;
+		Height = mi.rcMonitor.top - mi.rcMonitor.top;
 	}
 	WNDCLASSEX wc;
 	wc.cbSize = sizeof(WNDCLASSEX);
@@ -69,8 +69,6 @@ bool InitializeWindow(HINSTANCE hInstance, int ShowWnd, bool fullScreen)
 		Width, Height, NULL, NULL, hInstance, NULL);
 	if (!hwnd)
 	{
-		auto t = GetLastError();
-		MessageBox(NULL, LPCWSTR(GetLastError()), L"Error", MB_OK | MB_ICONERROR);
 		MessageBox(NULL, L"Error creating window", L"Error", MB_OK | MB_ICONERROR);
 		return false;
 	}
@@ -88,7 +86,7 @@ void mainloop()
 {
 	MSG msg;
 	ZeroMemory(&msg, sizeof(MSG));
-	while (1)
+	while (Running)
 	{
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 		{
@@ -113,10 +111,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		if (wParam == VK_ESCAPE)
 		{
 			if (MessageBox(0, L"Are you sure you want to exit?", L"Really?", MB_YESNO | MB_ICONQUESTION) == IDYES)
+			{
+				Running = false;
 				DestroyWindow(hWnd);
+			}
 		}
 		return 0;
 	case WM_DESTROY:
+		Running = false;
 		PostQuitMessage(0);
 		return 0;
 	}
@@ -219,7 +221,6 @@ bool InitD3D()
 	hr = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator[0], NULL, IID_PPV_ARGS(&commandList));
 	if (FAILED(hr))
 		return false;
-	commandList->Close();
 
 	//fence & fence event
 	for (int i = 0; i < frameBufferCount; i++)
@@ -272,7 +273,8 @@ bool InitD3D()
 	//input layout
 	D3D12_INPUT_ELEMENT_DESC inputLayout[] =
 	{
-		{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}
+		{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
+		{"COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,12,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}
 	};
 	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc = {};
 
@@ -298,11 +300,10 @@ bool InitD3D()
 		return false;
 
 	//vertex buffer
-	Vertex vList[] =
-	{
-		{{0.0f,0.5f,0.5f,}},
-		{{0.5f,-0.5f,0.5f}},
-		{{-0.5f,-0.5f,0.5f}}
+	Vertex vList[] = {
+		{ 0.0f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 0.5f, -0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f },
+		{ -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f },
 	};
 	int vBufferSize = sizeof(vList);
 	device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -365,7 +366,7 @@ void UpdatePipeline()
 	hr = commandAllocator[frameIndex]->Reset();
 	if (FAILED(hr))
 		Running = false;
-	hr = commandList->Reset(commandAllocator[frameIndex], NULL);
+	hr = commandList->Reset(commandAllocator[frameIndex], pipelineStateObject);
 	if (FAILED(hr))
 		Running = false;
 
