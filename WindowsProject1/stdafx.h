@@ -11,6 +11,8 @@
 #include <DirectXMath.h>
 #include "d3dx12.h"
 
+using namespace DirectX;
+
 #define SAFE_RELEASE(p) {if((p)){(p)->Release();(p)=0;}}
 
 HWND hwnd = NULL;
@@ -51,3 +53,13 @@ void Render();
 void Cleanup();
 void WaitForPreviousFrame();
 
+ID3D12PipelineState* pipelineStateObject;
+ID3D12RootSignature* rootSignature;
+D3D12_VIEWPORT viewport;
+D3D12_RECT scissorRect;
+ID3D12Resource* vertexBuffer;
+D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+struct Vertex
+{
+	XMFLOAT3 pos;
+};

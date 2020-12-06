@@ -224,6 +224,43 @@ bool InitD3D()
 	if (fenceEvent == nullptr)
 		return false;
 
+	//root signature
+	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+	rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+	ID3DBlob* signature;
+	hr = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, nullptr);
+	if (FAILED(hr))
+		return false;
+	hr = device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
+	if (FAILED(hr))
+		return false;
+
+	//create shaders
+	ID3DBlob* vertexShader;
+	ID3DBlob* pixelShader;
+	ID3DBlob* errorBuff;
+	hr = D3DCompileFromFile(L"VertexShader.hlsl", nullptr, nullptr, "main", "vs_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &vertexShader, &errorBuff);
+	if (FAILED(hr))
+	{
+		OutputDebugStringA((char*)errorBuff->GetBufferPointer());
+		return false;
+	}
+	hr = D3DCompileFromFile(L"PixelShader.hlgl", nullptr, nullptr, "main", "ps_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &pixelShader, &errorBuff);
+	if (FAILED(hr))
+	{
+		OutputDebugStringA((char*)errorBuff->GetBufferPointer());
+		return false;
+	}
+
+	D3D12_SHADER_BYTECODE vertexShaderByteCode = {};
+	D3D12_SHADER_BYTECODE pixelShaderByteCode = {};
+	vertexShaderByteCode.BytecodeLength = vertexShader->GetBufferSize();
+	vertexShaderByteCode.pShaderBytecode = vertexShader->GetBufferPointer();
+	pixelShaderByteCode.BytecodeLength = pixelShader->GetBufferSize();
+	pixelShaderByteCode.pShaderBytecode = pixelShader->GetBufferPointer();
+
+
 	return true;
 }
 
