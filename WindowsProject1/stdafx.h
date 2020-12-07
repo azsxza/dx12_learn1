@@ -11,6 +11,11 @@
 #include <DirectXMath.h>
 #include "d3dx12.h"
 #include <string>
+
+// this is the structure of our constant buffer.
+struct ConstantBuffer {
+    DirectX::XMFLOAT4 colorMultiplier;
+};
 #define SAFE_RELEASE(p) { if ( (p) ) { (p)->Release(); (p) = 0; } }
 
 HWND hwnd = NULL;
@@ -63,3 +68,10 @@ D3D12_INDEX_BUFFER_VIEW indexBufferView;
 
 ID3D12Resource* depthStencilBuffer;
 ID3D12DescriptorHeap* dsDescriptorHeap;
+
+ID3D12DescriptorHeap* mainDescriptorHeap[frameBufferCount];
+ID3D12Resource* constantBufferUploadHeap[frameBufferCount];
+
+ConstantBuffer cbColorMultiplierData;
+
+UINT8* cbColorMultiplierGPUAddress[frameBufferCount];
