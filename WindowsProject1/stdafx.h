@@ -12,10 +12,28 @@
 #include "d3dx12.h"
 #include <string>
 
+using namespace DirectX;
+
 // this is the structure of our constant buffer.
-struct ConstantBuffer {
-    DirectX::XMFLOAT4 colorMultiplier;
+struct ConstantBuffer
+{
+	XMFLOAT4 colorMultiplier;
 };
+
+struct ConstantBufferPerObject
+{
+	XMFLOAT4X4 wvpMat;
+};
+
+struct Vertex
+{
+	Vertex(float x, float y, float z, float r, float g, float b, float a) :pos(x, y, z), color(r, g, b, a) {}
+	XMFLOAT3 pos;
+	XMFLOAT4 color;
+};
+
+
+
 #define SAFE_RELEASE(p) { if ( (p) ) { (p)->Release(); (p) = 0; } }
 
 HWND hwnd = NULL;
@@ -75,3 +93,26 @@ ID3D12Resource* constantBufferUploadHeap[frameBufferCount];
 ConstantBuffer cbColorMultiplierData;
 
 UINT8* cbColorMultiplierGPUAddress[frameBufferCount];
+
+
+int ConstantBufferPerObjectAlignedSize = (sizeof(ConstantBufferPerObject) + 255) & ~255;
+ConstantBufferPerObject cbPerObject;
+ID3D12Resource* constantBufferUploadHeaps[frameBufferCount];
+UINT8* cbvGPUAddress[frameBufferCount];
+
+XMFLOAT4X4 cameraProjMat;
+XMFLOAT4X4 cameraViewMat;
+
+XMFLOAT4 cameraPosition;
+XMFLOAT4 cameraTarget;
+XMFLOAT4 cameraUp;
+
+XMFLOAT4X4 cube1WorldMat;
+XMFLOAT4X4 cube1RotMat;
+XMFLOAT4 cube1Position;
+
+XMFLOAT4X4 cube2WorldMat;
+XMFLOAT4X4 cube2RotMat;
+XMFLOAT4 cube2PositionOffset;
+
+int numCubeIndices;

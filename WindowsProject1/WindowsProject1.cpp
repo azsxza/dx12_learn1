@@ -2,13 +2,6 @@
 #include <iostream>
 using namespace DirectX;
 
-struct Vertex
-{
-	Vertex(float x, float y, float z, float r, float g, float b, float a) :pos(x, y, z), color(r, g, b, a) {}
-	XMFLOAT3 pos;
-	XMFLOAT4 color;
-};
-
 
 int WINAPI WinMain(HINSTANCE hInstance,	HINSTANCE hPrevInstance,	LPSTR lpCmdLine,	int nShowCmd)
 {
@@ -234,23 +227,28 @@ bool InitD3D()
 	if (fenceEvent == nullptr)
 		return false;
 
-	//create descriptor table ranges
-	D3D12_DESCRIPTOR_RANGE descriptorTableRanges[1];
-	descriptorTableRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	descriptorTableRanges[0].NumDescriptors = 1;
-	descriptorTableRanges[0].BaseShaderRegister = 0;
-	descriptorTableRanges[0].RegisterSpace = 0;
-	descriptorTableRanges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	//root signature
+	D3D12_ROOT_DESCRIPTOR rootCBVDescriptor;
+	rootCBVDescriptor.RegisterSpace = 0;
+	rootCBVDescriptor.ShaderRegister = 0;
 
-	//create descriptorTable
-	D3D12_ROOT_DESCRIPTOR_TABLE descriptorTable;
-	descriptorTable.NumDescriptorRanges = _countof(descriptorTableRanges);
-	descriptorTable.pDescriptorRanges = &descriptorTableRanges[0];
+	////create descriptor table ranges
+	//D3D12_DESCRIPTOR_RANGE descriptorTableRanges[1];
+	//descriptorTableRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	//descriptorTableRanges[0].NumDescriptors = 1;
+	//descriptorTableRanges[0].BaseShaderRegister = 0;
+	//descriptorTableRanges[0].RegisterSpace = 0;
+	//descriptorTableRanges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	////create descriptorTable
+	//D3D12_ROOT_DESCRIPTOR_TABLE descriptorTable;
+	//descriptorTable.NumDescriptorRanges = _countof(descriptorTableRanges);
+	//descriptorTable.pDescriptorRanges = &descriptorTableRanges[0];
 
 	//create a root parameter and fill
 	D3D12_ROOT_PARAMETER rootParameters[1];
-	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParameters[0].DescriptorTable = descriptorTable;
+	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[0].Descriptor = rootCBVDescriptor;
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 
 	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
@@ -327,13 +325,42 @@ bool InitD3D()
 	if (FAILED(hr))
 		return false;
 
-	// a quad
 	Vertex vList[] = {
-		// first quad (closer to camera, blue)
-		{ -0.5f,  0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f },
-		{  0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 1.0f, 1.0f },
-		{ -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f },
-		{  0.5f,  0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f }
+		// front face
+		{ -0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f },
+		{  0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 1.0f, 1.0f },
+		{ -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 1.0f },
+		{  0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f },
+
+		// right side face
+		{  0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f },
+		{  0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 1.0f, 1.0f },
+		{  0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f },
+		{  0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f },
+
+		// left side face
+		{ -0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f },
+		{ -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 1.0f, 1.0f },
+		{ -0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f },
+		{ -0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f },
+
+		// back face
+		{  0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f },
+		{ -0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 1.0f, 1.0f },
+		{  0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f },
+		{ -0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f },
+
+		// top face
+		{ -0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 1.0f, 1.0f },
+		{ 0.5f,  0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 1.0f },
+		{ -0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f },
+
+		// bottom face
+		{  0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f },
+		{ -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 1.0f, 1.0f },
+		{  0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 1.0f },
+		{ -0.5f, -0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f },
 	};
 
 	int vBufferSize = sizeof(vList);
@@ -358,11 +385,34 @@ bool InitD3D()
 	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(vertexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
 	DWORD iList[] = {
-	0, 1, 2, // first triangle
-	0, 3, 1 // second triangle
+		// ffront face
+		0, 1, 2, // first triangle
+		0, 3, 1, // second triangle
+
+		// left face
+		4, 5, 6, // first triangle
+		4, 7, 5, // second triangle
+
+		// right face
+		8, 9, 10, // first triangle
+		8, 11, 9, // second triangle
+
+		// back face
+		12, 13, 14, // first triangle
+		12, 15, 13, // second triangle
+
+		// top face
+		16, 17, 18, // first triangle
+		16, 19, 17, // second triangle
+
+		// bottom face
+		20, 21, 22, // first triangle
+		20, 23, 21, // second triangle
 	};
 
 	int iBufferSize = sizeof(iList);
+	numCubeIndices = iBufferSize / sizeof(DWORD);
+
 	device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE,
 		&CD3DX12_RESOURCE_DESC::Buffer(iBufferSize), D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&indexBuffer));
 	indexBuffer->SetName(L"Index Buffer Rescource Heap");
@@ -407,16 +457,16 @@ bool InitD3D()
 
 	device->CreateDepthStencilView(depthStencilBuffer, &depthStencilDesc, dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
-	for (int i = 0; i < frameBufferCount; i++)
-	{
-		D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-		heapDesc.NumDescriptors = 1;
-		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		hr = device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mainDescriptorHeap[i]));
-		if (FAILED(hr))
-			Running = false;
-	}
+	//for (int i = 0; i < frameBufferCount; i++)
+	//{
+	//	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+	//	heapDesc.NumDescriptors = 1;
+	//	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	//	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	//	hr = device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mainDescriptorHeap[i]));
+	//	if (FAILED(hr))
+	//		Running = false;
+	//}
 
 	for (int i = 0; i < frameBufferCount; i++)
 	{
@@ -425,16 +475,12 @@ bool InitD3D()
 			nullptr, IID_PPV_ARGS(&constantBufferUploadHeap[i]));
 		constantBufferUploadHeap[i]->SetName(L"Constant Buffer Upload Heap");
 
-		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-		cbvDesc.BufferLocation = constantBufferUploadHeap[i]->GetGPUVirtualAddress();
-		cbvDesc.SizeInBytes = (sizeof(ConstantBuffer) + 255) & ~255;
-		device->CreateConstantBufferView(&cbvDesc, mainDescriptorHeap[i]->GetCPUDescriptorHandleForHeapStart());
-
-		ZeroMemory(&cbColorMultiplierData, sizeof(cbColorMultiplierData));
+		ZeroMemory(&cbPerObject, sizeof(cbPerObject));
 
 		CD3DX12_RANGE readRange(0, 0);
-		hr = constantBufferUploadHeap[i]->Map(0, &readRange, reinterpret_cast<void**>(&cbColorMultiplierGPUAddress[i]));
-		memcpy(cbColorMultiplierGPUAddress[i], &cbColorMultiplierData, sizeof(cbColorMultiplierData));
+		hr = constantBufferUploadHeap[i]->Map(0, &readRange, reinterpret_cast<void**>(&cbvGPUAddress[i]));
+		memcpy(cbvGPUAddress[i], &cbPerObject, sizeof(cbPerObject));
+		memcpy(cbvGPUAddress[i] + ConstantBufferPerObjectAlignedSize, &cbPerObject, sizeof(cbPerObject));
 	}
 
 
@@ -467,30 +513,39 @@ bool InitD3D()
 	scissorRect.right = Width;
 	scissorRect.bottom = Height;
 
+	XMMATRIX tmpMat = XMMatrixPerspectiveFovLH(45.0f * (3.1415926535897932384626f / 180.0f), (float)Width / (float)Height, 0.1f, 1000.0f);
+	XMStoreFloat4x4(&cameraProjMat, tmpMat);
+
+	cameraPosition = XMFLOAT4(0.0f, 2.0f, -4.0f, 0.0f);
+	cameraTarget = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	cameraUp = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+
+	XMVECTOR cPos = XMLoadFloat4(&cameraPosition);
+	XMVECTOR cTarg = XMLoadFloat4(&cameraTarget);
+	XMVECTOR cUp = XMLoadFloat4(&cameraUp);
+	tmpMat = XMMatrixLookAtLH(cPos, cTarg, cUp);
+	XMStoreFloat4x4(&cameraViewMat, tmpMat);
+
+	cube1Position = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	XMVECTOR posVec = XMLoadFloat4(&cube1Position);
+
+	tmpMat = XMMatrixTranslationFromVector(posVec);
+	XMStoreFloat4x4(&cube1RotMat, XMMatrixIdentity());
+	XMStoreFloat4x4(&cube1WorldMat, tmpMat);
+
+	cube2PositionOffset = XMFLOAT4(1.5f, 0.0f, 0.0f, 0.0f);
+	posVec = XMLoadFloat4(&cube2PositionOffset) + XMLoadFloat4(&cube1Position);
+
+	tmpMat = XMMatrixTranslationFromVector(posVec);
+	XMStoreFloat4x4(&cube2RotMat, XMMatrixIdentity());
+	XMStoreFloat4x4(&cube2WorldMat, tmpMat);
+
 	return true;
 }
 
 void Update()
 {
-	static float rIncrement = 0.00002f;
-	static float gIncrement = 0.00006f;
-	static float bIncrement = 0.00009f;
-	cbColorMultiplierData.colorMultiplier.x += rIncrement;
-	cbColorMultiplierData.colorMultiplier.y += gIncrement;
-	cbColorMultiplierData.colorMultiplier.z += bIncrement;
-	if (cbColorMultiplierData.colorMultiplier.x >= 1.0 || cbColorMultiplierData.colorMultiplier.x <= 0.0)
-	{
-		cbColorMultiplierData.colorMultiplier.x = cbColorMultiplierData.colorMultiplier.x >= 1.0 ? 1.0 : 0.0;
-	}
-	if (cbColorMultiplierData.colorMultiplier.y >= 1.0 || cbColorMultiplierData.colorMultiplier.y <= 0.0)
-	{
-		cbColorMultiplierData.colorMultiplier.y = cbColorMultiplierData.colorMultiplier.y >= 1.0 ? 1.0 : 0.0;
-	}
-	if (cbColorMultiplierData.colorMultiplier.z >= 1.0 || cbColorMultiplierData.colorMultiplier.z <= 0.0)
-	{
-		cbColorMultiplierData.colorMultiplier.z = cbColorMultiplierData.colorMultiplier.z >= 1.0 ? 1.0 : 0.0;
-	}
-	memcpy(cbColorMultiplierGPUAddress[frameIndex], &cbColorMultiplierData, sizeof(cbColorMultiplierData));
+
 }
 
 void UpdatePipeline()
