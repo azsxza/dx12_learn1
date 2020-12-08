@@ -88,8 +88,6 @@ D3D12_INDEX_BUFFER_VIEW indexBufferView;
 ID3D12Resource* depthStencilBuffer;
 ID3D12DescriptorHeap* dsDescriptorHeap;
 
-ID3D12DescriptorHeap* mainDescriptorHeap[frameBufferCount];
-ID3D12Resource* constantBufferUploadHeap[frameBufferCount];
 
 ConstantBuffer cbColorMultiplierData;
 

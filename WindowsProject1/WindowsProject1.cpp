@@ -476,17 +476,6 @@ bool InitD3D()
 
 	device->CreateDepthStencilView(depthStencilBuffer, &depthStencilDesc, dsDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
-	//for (int i = 0; i < frameBufferCount; i++)
-	//{
-	//	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-	//	heapDesc.NumDescriptors = 1;
-	//	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	//	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	//	hr = device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mainDescriptorHeap[i]));
-	//	if (FAILED(hr))
-	//		Running = false;
-	//}
-
 	for (int i = 0; i < frameBufferCount; i++)
 	{
 		hr = device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
@@ -691,12 +680,6 @@ void Cleanup()
 
 	SAFE_RELEASE(depthStencilBuffer);
 	SAFE_RELEASE(dsDescriptorHeap);
-
-	for (int i = 0; i < frameBufferCount; ++i)
-	{
-		SAFE_RELEASE(mainDescriptorHeap[i]);
-		SAFE_RELEASE(constantBufferUploadHeap[i]);
-	};
 
 	for (int i = 0; i < frameBufferCount; i++)
 	{
