@@ -472,13 +472,13 @@ bool InitD3D()
 	{
 		hr = device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(1024 * 64), D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr, IID_PPV_ARGS(&constantBufferUploadHeap[i]));
-		constantBufferUploadHeap[i]->SetName(L"Constant Buffer Upload Heap");
+			nullptr, IID_PPV_ARGS(&constantBufferUploadHeaps[i]));
+		constantBufferUploadHeaps[i]->SetName(L"Constant Buffer Upload Heap");
 
 		ZeroMemory(&cbPerObject, sizeof(cbPerObject));
 
 		CD3DX12_RANGE readRange(0, 0);
-		hr = constantBufferUploadHeap[i]->Map(0, &readRange, reinterpret_cast<void**>(&cbvGPUAddress[i]));
+		hr = constantBufferUploadHeaps[i]->Map(0, &readRange, reinterpret_cast<void**>(&cbvGPUAddress[i]));
 		memcpy(cbvGPUAddress[i], &cbPerObject, sizeof(cbPerObject));
 		memcpy(cbvGPUAddress[i] + ConstantBufferPerObjectAlignedSize, &cbPerObject, sizeof(cbPerObject));
 	}
@@ -545,7 +545,42 @@ bool InitD3D()
 
 void Update()
 {
+	XMMATRIX rotXMat = XMMatrixRotationX(0.0001f);
+	XMMATRIX rotYMat = XMMatrixRotationY(0.0002f);
+	XMMATRIX rotZMat = XMMatrixRotationZ(0.0003f);
 
+	XMMATRIX rotMat = XMLoadFloat4x4(&cube1RotMat) * rotXMat * rotYMat * rotZMat;
+	XMStoreFloat4x4(&cube1RotMat, rotMat);
+
+	XMMATRIX translationMat = XMMatrixTranslationFromVector(XMLoadFloat4(&cube1Position));
+	XMMATRIX worldMat = rotMat * translationMat;
+	XMStoreFloat4x4(&cube1WorldMat, worldMat);
+
+	XMMATRIX viewMat = XMLoadFloat4x4(&cameraViewMat);
+	XMMATRIX projMat = XMLoadFloat4x4(&cameraProjMat);
+	XMMATRIX wvpMat = XMLoadFloat4x4(&cube1WorldMat) * viewMat * projMat;
+	XMMATRIX transposed = XMMatrixTranspose(wvpMat);
+	XMStoreFloat4x4(&cbPerObject.wvpMat, transposed);
+
+	memcpy(cbvGPUAddress[frameIndex], &cbPerObject, sizeof(cbPerObject));
+
+	rotXMat = XMMatrixRotationX(0.0003f);
+	rotYMat = XMMatrixRotationY(0.0002f);
+	rotZMat = XMMatrixRotationZ(0.0001f);
+
+	rotMat = rotZMat * (XMLoadFloat4x4(&cube2RotMat) * (rotXMat * rotYMat));
+	XMStoreFloat4x4(&cube2RotMat, rotMat);
+
+	XMMATRIX translationOffsetMat = XMMatrixTranslationFromVector(XMLoadFloat4(&cube2PositionOffset));
+	XMMATRIX scaleMat = XMMatrixScaling(0.5f, 0.5f, 0.5f);
+	worldMat = scaleMat * translationOffsetMat * rotMat * translationMat;
+	XMStoreFloat4x4(&cube2WorldMat, worldMat);
+
+	wvpMat = XMLoadFloat4x4(&cube2WorldMat) * viewMat * projMat;
+	transposed = XMMatrixTranspose(wvpMat);
+	XMStoreFloat4x4(&cbPerObject.wvpMat, transposed);
+
+	memcpy(cbvGPUAddress[frameIndex] + ConstantBufferPerObjectAlignedSize, &cbPerObject, sizeof(cbPerObject));
 }
 
 void UpdatePipeline()
@@ -570,20 +605,18 @@ void UpdatePipeline()
 
 	commandList->SetGraphicsRootSignature(rootSignature);
 
-	ID3D12DescriptorHeap* descriptorHeaps[] = { mainDescriptorHeap[frameIndex] };
-	commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-
-	commandList->SetGraphicsRootDescriptorTable(0, mainDescriptorHeap[frameIndex]->GetGPUDescriptorHandleForHeapStart());
-
-	//
+	//draw
 	commandList->RSSetViewports(1, &viewport);
 	commandList->RSSetScissorRects(1, &scissorRect);
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-	//commandList->DrawInstanced(3, 1, 0, 0);
 	commandList->IASetIndexBuffer(&indexBufferView);
-	commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
-	//commandList->DrawIndexedInstanced(6, 1, 0, 4, 0);
+
+	commandList->SetGraphicsRootConstantBufferView(0, constantBufferUploadHeaps[frameIndex]->GetGPUVirtualAddress());
+	commandList->DrawIndexedInstanced(numCubeIndices, 1, 0, 0, 0);
+
+	commandList->SetGraphicsRootConstantBufferView(0, constantBufferUploadHeaps[frameIndex]->GetGPUVirtualAddress() + ConstantBufferPerObjectAlignedSize);
+	commandList->DrawIndexedInstanced(numCubeIndices, 1, 0, 0, 0);
 
 
 	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIndex], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -645,7 +678,13 @@ void Cleanup()
 		SAFE_RELEASE(mainDescriptorHeap[i]);
 		SAFE_RELEASE(constantBufferUploadHeap[i]);
 	};
+
+	for (int i = 0; i < frameBufferCount; i++)
+	{
+		SAFE_RELEASE(constantBufferUploadHeaps[i]);
+	}
 }
+
 
 void WaitForPreviousFrame()
 {
