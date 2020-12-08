@@ -700,3 +700,23 @@ void WaitForPreviousFrame()
 	}
 	fenceValue[frameIndex]++;
 }
+
+int LoadImageDataFromFile(BYTE** imageData, D3D12_RESOURCE_DESC& resourceDescription, LPCWSTR filename, int& bytePerRow)
+{
+	return 0;
+}
+
+DXGI_FORMAT GetDXGIFormatWICFormat(WICPixelFormatGUID& wicFormatGUID)
+{
+	return DXGI_FORMAT();
+}
+
+WICPixelFormatGUID GetCovertToWICFormat(WICPixelFormatGUID& wicFormatGUID)
+{
+	return WICPixelFormatGUID();
+}
+
+int GetDXGIFormatBitsPerPixel(DXGI_FORMAT& dxgiFormat)
+{
+	return 0;
+}

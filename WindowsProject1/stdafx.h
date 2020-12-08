@@ -11,6 +11,7 @@
 #include <DirectXMath.h>
 #include "d3dx12.h"
 #include <string>
+#include <wincodec.h>
 
 using namespace DirectX;
 
@@ -27,9 +28,9 @@ struct ConstantBufferPerObject
 
 struct Vertex
 {
-	Vertex(float x, float y, float z, float r, float g, float b, float a) :pos(x, y, z), color(r, g, b, a) {}
+	Vertex(float x, float y, float z, float r, float u, float v) :pos(x, y, z), texCoord(u,v) {}
 	XMFLOAT3 pos;
-	XMFLOAT4 color;
+	XMFLOAT2 texCoord;
 };
 
 
@@ -116,3 +117,13 @@ XMFLOAT4X4 cube2RotMat;
 XMFLOAT4 cube2PositionOffset;
 
 int numCubeIndices;
+
+ID3D12Resource* textureBuffer;
+int LoadImageDataFromFile(BYTE** imageData, D3D12_RESOURCE_DESC& resourceDescription, LPCWSTR filename, int& bytePerRow);
+
+DXGI_FORMAT GetDXGIFormatWICFormat(WICPixelFormatGUID& wicFormatGUID);
+WICPixelFormatGUID GetCovertToWICFormat(WICPixelFormatGUID& wicFormatGUID);
+int GetDXGIFormatBitsPerPixel(DXGI_FORMAT& dxgiFormat);
+
+ID3D12DescriptorHeap* mainDescriptorHeap;
+ID3D12Resource* textureBufferUploadHeap;
