@@ -90,7 +90,8 @@ void mainloop()
 		}
 		else
 		{
-			Update();
+			double delta = timer.GetFrameDelta();
+			Update(delta);
 			Render();
 		}
 	}
@@ -613,7 +614,7 @@ bool InitD3D()
 	return true;
 }
 
-void Update()
+void Update(double delta)
 {
 	XMMATRIX rotXMat = XMMatrixRotationX(0.0001f);
 	XMMATRIX rotYMat = XMMatrixRotationY(0.0002f);
