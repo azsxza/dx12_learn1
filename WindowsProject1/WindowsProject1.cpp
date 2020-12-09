@@ -491,6 +491,13 @@ bool InitD3D()
 		memcpy(cbvGPUAddress[i] + ConstantBufferPerObjectAlignedSize, &cbPerObject, sizeof(cbPerObject));
 	}
 
+	//load image file
+	D3D12_RESOURCE_DESC textureDesc;
+	int imageBytesPerRow;
+	BYTE* imageData;
+	int imageSize = LoadImageDataFromFile(&imageData, textureDesc, L"braynzar.jpg", imageBytesPerRow);
+
+
 
 	commandList->Close();
 	ID3D12CommandList* ppCommandLists[] = { commandList };
@@ -703,9 +710,81 @@ void WaitForPreviousFrame()
 	fenceValue[frameIndex]++;
 }
 
-int LoadImageDataFromFile(BYTE** imageData, D3D12_RESOURCE_DESC& resourceDescription, LPCWSTR filename, int& bytePerRow)
+int LoadImageDataFromFile(BYTE** imageData, D3D12_RESOURCE_DESC& resourceDescription, LPCWSTR filename, int& bytesPerRow)
 {
-	return 0;
+	HRESULT hr;
+	static IWICImagingFactory* wicFactory;
+	IWICBitmapDecoder* wicDecoder = NULL;
+	IWICBitmapFrameDecode* wicFrame = NULL;
+	IWICFormatConverter* wicConverter = NULL;
+
+	bool imageConverted = false;
+	if (wicFactory == NULL)
+	{
+		CoInitialize(NULL);
+		hr = CoCreateInstance(CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&wicFactory));
+		if (FAILED(hr))
+			return 0;
+	}
+	hr = wicFactory->CreateDecoderFromFilename(filename, NULL, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &wicDecoder);
+	if (FAILED(hr))
+		return 0;
+
+	hr = wicDecoder->GetFrame(0, &wicFrame);
+	if (FAILED(hr))
+		return 0;
+
+	WICPixelFormatGUID pixelFormat;
+	hr = wicFrame->GetPixelFormat(&pixelFormat);
+	if (FAILED(hr))
+		return 0;
+
+	UINT textureWidth, textureHeight;
+	hr = wicFrame->GetSize(&textureWidth, &textureHeight);
+	if (FAILED(hr))
+		return 0;
+
+	DXGI_FORMAT dxgiFormat = GetDXGIFormatWICFormat(pixelFormat);
+	if (dxgiFormat == DXGI_FORMAT_UNKNOWN)
+	{
+		WICPixelFormatGUID converToPixelFormat = GetCovertToWICFormat(pixelFormat);
+		if (converToPixelFormat == GUID_WICPixelFormatDontCare)
+			return 0;
+		dxgiFormat = GetDXGIFormatWICFormat(converToPixelFormat);
+		hr = wicFactory->CreateFormatConverter(&wicConverter);
+		if (FAILED(hr))
+			return 0;
+
+		BOOL canConvert = FALSE;
+		hr = wicConverter->CanConvert(pixelFormat, converToPixelFormat, &canConvert);
+		if (FAILED(hr))
+			return 0;
+
+		hr = wicConverter->Initialize(wicFrame, converToPixelFormat, WICBitmapDitherTypeErrorDiffusion, 0, 0, WICBitmapPaletteTypeCustom);
+		if (FAILED(hr))
+			return 0;
+
+		imageConverted = true;
+	}
+
+	int bitesPerPixel = GetDXGIFormatBitsPerPixel(dxgiFormat);
+	bytesPerRow = (textureWidth * bitesPerPixel) / 8;
+	int imageSize = bytesPerRow * textureHeight;
+
+	*imageData = (BYTE*)malloc(imageSize);
+	if (imageConverted)
+	{
+		hr = wicConverter->CopyPixels(0, bytesPerRow, imageSize, *imageData);
+		if (FAILED(hr))
+			return 0;
+	}
+	else
+	{
+		hr = wicFrame->CopyPixels(0, bytesPerRow, imageSize, *imageData);
+		if (FAILED(hr))
+			return 0;
+	}
+
 }
 
 DXGI_FORMAT GetDXGIFormatWICFormat(WICPixelFormatGUID& wicFormatGUID)

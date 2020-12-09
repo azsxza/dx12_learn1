@@ -117,7 +117,7 @@ XMFLOAT4 cube2PositionOffset;
 int numCubeIndices;
 
 ID3D12Resource* textureBuffer;
-int LoadImageDataFromFile(BYTE** imageData, D3D12_RESOURCE_DESC& resourceDescription, LPCWSTR filename, int& bytePerRow);
+int LoadImageDataFromFile(BYTE** imageData, D3D12_RESOURCE_DESC& resourceDescription, LPCWSTR filename, int& bytesPerRow);
 
 DXGI_FORMAT GetDXGIFormatWICFormat(WICPixelFormatGUID& wicFormatGUID);
 WICPixelFormatGUID GetCovertToWICFormat(WICPixelFormatGUID& wicFormatGUID);
