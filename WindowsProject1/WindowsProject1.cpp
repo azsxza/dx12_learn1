@@ -381,6 +381,46 @@ bool InitD3D()
 		{"TEXCOORD",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,16,D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA,1},
 		{"COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,32,D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA,1}
 	};
+	D3D12_INPUT_LAYOUT_DESC textInputLayoutDesc = {};
+	textInputLayoutDesc.NumElements = sizeof(textInputLayout) / sizeof(D3D12_INPUT_ELEMENT_DESC);
+	textInputLayoutDesc.pInputElementDescs = textInputLayout;
+
+	//create text pso
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC textpsoDesc = {};
+	textpsoDesc.InputLayout = textInputLayoutDesc;
+	textpsoDesc.pRootSignature = rootSignature;
+	textpsoDesc.VS = textVertexShaderBytecode;
+	textpsoDesc.PS = textPixelShaderBytecode;
+	textpsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	textpsoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	textpsoDesc.SampleDesc = sampleDesc;
+	textpsoDesc.SampleMask = 0xffffffff;
+	textpsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+
+	D3D12_BLEND_DESC textBlendStateDesc = {};
+	textBlendStateDesc.AlphaToCoverageEnable = FALSE;
+	textBlendStateDesc.IndependentBlendEnable = FALSE;
+	textBlendStateDesc.RenderTarget[0].BlendEnable = TRUE;
+	textBlendStateDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	textBlendStateDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+	textBlendStateDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	textBlendStateDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_SRC_ALPHA;
+	textBlendStateDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+	textBlendStateDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	textBlendStateDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	
+	textpsoDesc.BlendState = textBlendStateDesc;
+	textpsoDesc.NumRenderTargets = 1;
+	D3D12_DEPTH_STENCIL_DESC textDepthStencilDesc = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	textDepthStencilDesc.DepthEnable = false;
+	textpsoDesc.DepthStencilState = textDepthStencilDesc;
+
+	hr = device->CreateGraphicsPipelineState(&textpsoDesc, IID_PPV_ARGS(&textPSO));
+	if (FAILED(hr))
+	{
+		Running = false;
+		return false;
+	}
 
 	Vertex vList[] = {
 		// front face
@@ -587,6 +627,81 @@ bool InitD3D()
 	srvDesc.Texture2D.MipLevels = 1;
 	device->CreateShaderResourceView(textureBuffer, &srvDesc, mainDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
+	//load font
+	arialFont = LoadFont(L"Arial.fnt", Width, Height);
+
+	//load font Image
+	D3D12_RESOURCE_DESC fontTextureDesc;
+	int fontImageBytesPerRow;
+	BYTE* fontImageData;
+	int fontImageSize = LoadImageDataFromFile(&fontImageData, fontTextureDesc, arialFont.fontImage.c_str(), fontImageBytesPerRow);
+
+	if (fontImageSize <= 0)
+	{
+		Running = false;
+		return false;
+	}
+
+	hr = device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE,
+		&fontTextureDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&arialFont.textureBuffer));
+	if (FAILED(hr))
+	{
+		Running = false;
+		return false;
+	}
+	arialFont.textureBuffer->SetName(L"Font Texture Buffer Resource Heap");
+
+	ID3D12Resource* fontTextureBufferUploadHeap;
+	UINT64 fontTextureUploadBufferSize;
+	device->GetCopyableFootprints(&fontTextureDesc, 0, 1, 0, nullptr, nullptr, nullptr, &fontTextureUploadBufferSize);
+	hr = device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(fontTextureUploadBufferSize), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+		IID_PPV_ARGS(&fontTextureBufferUploadHeap));
+	if (FAILED(hr))
+	{
+		Running = false;
+		return false;
+	}
+	fontTextureBufferUploadHeap->SetName(L"Font Texture Buffer Upload Resource Heap");
+
+	//store font image in upload heap
+	D3D12_SUBRESOURCE_DATA fontTextureData = {};
+	fontTextureData.pData = &fontImageData[0];
+	fontTextureData.RowPitch = fontImageBytesPerRow;
+	fontTextureData.SlicePitch = fontImageBytesPerRow * fontTextureDesc.Height;
+
+	UpdateSubresources(commandList, arialFont.textureBuffer, fontTextureBufferUploadHeap, 0, 0, 1, &fontTextureData);
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(arialFont.textureBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
+	//create text srv for font
+	D3D12_SHADER_RESOURCE_VIEW_DESC fontsrvDesc = {};
+	fontsrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	fontsrvDesc.Format = fontTextureDesc.Format;
+	fontsrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	fontsrvDesc.Texture2D.MipLevels = 1;
+
+	srvHandleSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	arialFont.srvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mainDescriptorHeap->GetGPUDescriptorHandleForHeapStart(), 1, srvHandleSize);
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(mainDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), 1, srvHandleSize);
+	device->CreateShaderResourceView(arialFont.textureBuffer, &fontsrvDesc, srvHandle);
+
+	//create text vertex buffer comited reousrce
+	for (int i = 0; i < frameBufferCount; i++)
+	{
+		hr = device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(maxNumTextCharacters * sizeof(TextVertex)), D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr, IID_PPV_ARGS(&textVertexBuffer[i]));
+		if (FAILED(hr))
+		{
+			Running = false;
+			return false;
+		}
+		textVertexBuffer[i]->SetName(L"Text Vertex Buffer Upload Resource Heap");
+		CD3DX12_RANGE readRange(0, 0);
+		hr = textVertexBuffer[i]->Map(0, &readRange, reinterpret_cast<void**>(&textVBGPUAdderss[i]));
+	}
+
 
 	commandList->Close();
 	ID3D12CommandList* ppCommandLists[] = { commandList };
@@ -604,6 +719,14 @@ bool InitD3D()
 	vertexBufferView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
 	vertexBufferView.StrideInBytes = sizeof(Vertex);
 	vertexBufferView.SizeInBytes = vBufferSize;
+
+	//set text vertex buffer view
+	for (int i = 0; i < frameBufferCount; i++)
+	{
+		textVertexBufferView[i].BufferLocation = textVertexBuffer[i]->GetGPUVirtualAddress();
+		textVertexBufferView[i].StrideInBytes = sizeof(TextVertex);
+		textVertexBufferView[i].SizeInBytes = maxNumTextCharacters * sizeof(TextVertex);
+	}
 
 	indexBufferView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
 	indexBufferView.Format = DXGI_FORMAT_R32_UINT;
@@ -653,9 +776,9 @@ bool InitD3D()
 
 void Update(double delta)
 {
-	XMMATRIX rotXMat = XMMatrixRotationX(0.0001f);
-	XMMATRIX rotYMat = XMMatrixRotationY(0.0002f);
-	XMMATRIX rotZMat = XMMatrixRotationZ(0.0003f);
+	XMMATRIX rotXMat = XMMatrixRotationX(0.0001f * delta);
+	XMMATRIX rotYMat = XMMatrixRotationY(0.0002f * delta);
+	XMMATRIX rotZMat = XMMatrixRotationZ(0.0003f * delta);
 
 	XMMATRIX rotMat = XMLoadFloat4x4(&cube1RotMat) * rotXMat * rotYMat * rotZMat;
 	XMStoreFloat4x4(&cube1RotMat, rotMat);
@@ -672,9 +795,9 @@ void Update(double delta)
 
 	memcpy(cbvGPUAddress[frameIndex], &cbPerObject, sizeof(cbPerObject));
 
-	rotXMat = XMMatrixRotationX(0.0003f);
-	rotYMat = XMMatrixRotationY(0.0002f);
-	rotZMat = XMMatrixRotationZ(0.0001f);
+	rotXMat = XMMatrixRotationX(0.0003f * delta);
+	rotYMat = XMMatrixRotationY(0.0002f * delta);
+	rotZMat = XMMatrixRotationZ(0.0001f * delta);
 
 	rotMat = rotZMat * (XMLoadFloat4x4(&cube2RotMat) * (rotXMat * rotYMat));
 	XMStoreFloat4x4(&cube2RotMat, rotMat);

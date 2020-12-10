@@ -222,6 +222,7 @@ int GetDXGIFormatBitsPerPixel(DXGI_FORMAT& dxgiFormat);
 
 ID3D12DescriptorHeap* mainDescriptorHeap;
 ID3D12Resource* textureBufferUploadHeap;
+UINT srvHandleSize;
 
 ID3D12PipelineState* textPSO;
 Font arialFont;
