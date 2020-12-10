@@ -12,6 +12,7 @@
 #include "d3dx12.h"
 #include <string>
 #include <wincodec.h>
+#include <fstream>
 
 using namespace DirectX;
 
