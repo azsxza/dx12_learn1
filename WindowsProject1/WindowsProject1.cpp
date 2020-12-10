@@ -856,7 +856,7 @@ void UpdatePipeline()
 	commandList->SetGraphicsRootConstantBufferView(0, constantBufferUploadHeaps[frameIndex]->GetGPUVirtualAddress() + ConstantBufferPerObjectAlignedSize);
 	commandList->DrawIndexedInstanced(numCubeIndices, 1, 0, 0, 0);
 
-	//RenderText(arialFont, std::wstring(L"FPS:") + std::to_wstring(timer.fps), XMFLOAT2(0.02f, 0.01f), XMFLOAT2(2.0f, 2.0f));
+	RenderText(arialFont, std::wstring(L"FPS:") + std::to_wstring(timer.fps), XMFLOAT2(0.02f, 0.01f), XMFLOAT2(2.0f, 2.0f));
 
 	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIndex], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 	hr = commandList->Close();

@@ -120,7 +120,7 @@ struct Timer
 	double GetFrameDelta()
 	{
 		LARGE_INTEGER li;
-		QueryPerformanceFrequency(&li);
+		QueryPerformanceCounter(&li);
 		frameDelta = double(li.QuadPart - lastFrameTime) / timerFrequency;
 		if (frameDelta > 0)
 		{
