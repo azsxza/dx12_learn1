@@ -343,7 +343,44 @@ bool InitD3D()
 
 	hr = device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineStateObject));
 	if (FAILED(hr))
+	{
+		Running = false;
 		return false;
+	}
+
+	//textPSO
+	ID3DBlob* textVertexShader;
+	hr = D3DCompileFromFile(L"TextVertexShader.hlsl", nullptr, nullptr, "main", "vs_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION,
+		0, &textVertexShader, &errorBuff);
+	if (FAILED(hr))
+	{
+		OutputDebugStringA((char*)errorBuff->GetBufferPointer());
+		Running = false;
+		return false;
+	}
+	D3D12_SHADER_BYTECODE textVertexShaderBytecode = {};
+	textVertexShaderBytecode.BytecodeLength = textVertexShader->GetBufferSize();
+	textVertexShaderBytecode.pShaderBytecode = textVertexShader->GetBufferPointer();
+
+	ID3DBlob* textPixelShader;
+	hr = D3DCompileFromFile(L"TextPixleShader.hlsl", nullptr, nullptr, "main", "ps_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION,
+		0, &textPixelShader, &errorBuff);
+	if (FAILED(hr))
+	{
+		OutputDebugStringA((char*)errorBuff->GetBufferPointer());
+		Running = false;
+		return false;
+	}
+	D3D12_SHADER_BYTECODE textPixelShaderBytecode = {};
+	textPixelShaderBytecode.BytecodeLength = textPixelShader->GetBufferSize();
+	textPixelShaderBytecode.pShaderBytecode = textPixelShader->GetBufferPointer();
+
+	D3D12_INPUT_ELEMENT_DESC textInputLayout[] =
+	{
+		{"POSITION",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,0,D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA,1},
+		{"TEXCOORD",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,16,D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA,1},
+		{"COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,32,D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA,1}
+	};
 
 	Vertex vList[] = {
 		// front face
