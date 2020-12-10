@@ -856,6 +856,7 @@ void UpdatePipeline()
 	commandList->SetGraphicsRootConstantBufferView(0, constantBufferUploadHeaps[frameIndex]->GetGPUVirtualAddress() + ConstantBufferPerObjectAlignedSize);
 	commandList->DrawIndexedInstanced(numCubeIndices, 1, 0, 0, 0);
 
+	RenderText(arialFont, std::wstring(L"FPS:") + std::to_wstring(timer.fps), XMFLOAT2(0.02f, 0.01f), XMFLOAT2(2.0f, 2.0f));
 
 	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIndex], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 	hr = commandList->Close();
@@ -1113,5 +1114,15 @@ int GetDXGIFormatBitsPerPixel(DXGI_FORMAT& dxgiFormat)
 	else if (dxgiFormat == DXGI_FORMAT_R16_UNORM) return 16;
 	else if (dxgiFormat == DXGI_FORMAT_R8_UNORM) return 8;
 	else if (dxgiFormat == DXGI_FORMAT_A8_UNORM) return 8;
+}
+
+Font LoadFont(LPCWSTR filename, int windowWidth, int windowHeight)
+{
+
+}
+
+void RenderText(Font font, std::wstring text, XMFLOAT2 pos, XMFLOAT2 scale = XMFLOAT2(1.0f, 1.0f),
+	XMFLOAT2 padding = XMFLOAT2(0.5f, 0.5f), XMFLOAT4 color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f))
+{
 
 }
